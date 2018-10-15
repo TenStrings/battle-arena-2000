@@ -1,0 +1,6 @@
+[package]
+name = "simple_platformer"
+version = "0.1.0"
+authors = ["Enzo Cioppettini <tenstrings5050@gmail.com>"]
+
+[dependencies]
