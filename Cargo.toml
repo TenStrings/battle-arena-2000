@@ -2,5 +2,9 @@
 name = "simple_platformer"
 version = "0.1.0"
 authors = ["Enzo Cioppettini <tenstrings5050@gmail.com>"]
+edition = "2018"
 
 [dependencies]
+winit = "0.20.0-alpha4"
+glutin = "0.22.0-alpha2"
+gl = "0.6.0"
