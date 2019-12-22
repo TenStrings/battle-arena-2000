@@ -1,5 +1,6 @@
 use gl::types::{GLsizeiptr, GLuint};
 use glutin::{event::Event, event::WindowEvent, event_loop::ControlFlow, Api, GlRequest};
+use std::convert::TryInto;
 use std::ffi::{c_void, CStr};
 
 fn main() {
@@ -11,9 +12,9 @@ fn main() {
     let windowed_context = glutin::ContextBuilder::new()
         .with_gl(GlRequest::Specific(Api::OpenGl, (3, 3)))
         .build_windowed(window_builder, &event_loop)
-        .unwrap();
+        .expect("Context creation failed");
 
-    let gl_current = unsafe { windowed_context.make_current().unwrap() };
+    let gl_current = unsafe { windowed_context.make_current().expect("Make current fail") };
 
     unsafe {
         gl::load_with(|symbol| gl_current.get_proc_address(symbol) as *const _);
@@ -37,9 +38,9 @@ fn main() {
         }
     "#,
     )
-    .unwrap();
+    .expect("vertex shader is not a valid CString");
 
-    unsafe {
+    let vertex_shader = unsafe {
         let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
         gl::ShaderSource(
             vertex_shader,
@@ -52,17 +53,20 @@ fn main() {
         let mut success: i32 = std::mem::uninitialized();
         let mut buffer = [0u8; 512];
         gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success as *mut i32);
-        if success != 0 {
+
+        if success != gl::TRUE.try_into().unwrap() {
             gl::GetShaderInfoLog(
                 vertex_shader,
                 512,
                 std::ptr::null_mut(),
                 buffer.as_mut_ptr() as *mut u8 as *mut i8,
             );
-            let c_string = CStr::from_bytes_with_nul(&buffer).unwrap();
+
+            let c_string = CStr::from_bytes_with_nul(&buffer).expect("Invalid ShaderInfoLog");
             println!("{}", c_string.to_str().unwrap());
         }
-    }
+        vertex_shader
+    };
 
     let fragment_shader_src = std::ffi::CString::new(
         r#"
@@ -77,7 +81,7 @@ fn main() {
     )
     .unwrap();
 
-    unsafe {
+    let fragment_shader = unsafe {
         let fragment_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
         gl::ShaderSource(
             fragment_shader,
@@ -94,7 +98,7 @@ fn main() {
             gl::COMPILE_STATUS,
             &mut success as *mut i32,
         );
-        if success != 0 {
+        if success != gl::TRUE.into() {
             gl::GetShaderInfoLog(
                 fragment_shader,
                 512,
@@ -104,8 +108,36 @@ fn main() {
             let c_string = CStr::from_bytes_with_nul(&buffer).unwrap();
             println!("{}", c_string.to_str().unwrap());
         }
-    }
+        fragment_shader
+    };
 
+    let program = unsafe {
+        let program = gl::CreateProgram();
+        gl::AttachShader(program, vertex_shader);
+        gl::AttachShader(program, fragment_shader);
+        gl::LinkProgram(program);
+
+        let mut success: i32 = std::mem::uninitialized();
+        gl::GetProgramiv(program, gl::LINK_STATUS, &mut success as *mut i32);
+        if (success != gl::TRUE.into()) {
+            eprintln!("Error in link");
+        }
+
+        gl::DeleteShader(vertex_shader);
+        gl::DeleteShader(fragment_shader);
+        gl::UseProgram(program);
+        program
+    };
+
+    let vao = unsafe {
+        let mut vao: GLuint = std::mem::uninitialized();
+        gl::GenVertexArrays(1, &mut vao as *mut GLuint);
+        vao
+    };
+
+    unsafe {
+        gl::BindVertexArray(vao);
+    }
     unsafe {
         let mut buffer_id: gl::types::GLuint = std::mem::uninitialized();
         gl::GenBuffers(1, &mut buffer_id as *mut GLuint);
@@ -116,7 +148,20 @@ fn main() {
             &(vertices[0]) as *const f32 as *const c_void,
             gl::STATIC_DRAW,
         );
+        buffer_id
     };
+
+    unsafe {
+        gl::VertexAttribPointer(
+            0,                                     //location = 0
+            3,                                     // size of the vertex attribute (vec3)
+            gl::FLOAT,                             //type
+            gl::FALSE,                             //normalization
+            3 * std::mem::size_of::<f32>() as i32, //stride? size of each vertex (attribute)
+            0 as *mut std::ffi::c_void,            // offset where the vertex attribute starts
+        );
+        gl::EnableVertexAttribArray(0);
+    }
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::EventsCleared => {
@@ -139,6 +184,8 @@ fn main() {
             unsafe {
                 gl::ClearColor(r, g, b, a);
                 gl::Clear(gl::COLOR_BUFFER_BIT);
+
+                gl::DrawArrays(gl::TRIANGLES, 0, 3);
             }
             gl_current.swap_buffers().unwrap();
         }
