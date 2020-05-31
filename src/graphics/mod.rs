@@ -383,7 +383,7 @@ impl Program {
 // or the other version?
 fn gen_circle(cx: f32, cy: f32, r: f32, segments: u16) -> Box<[f32]> {
     // TODO: remove try_from... use f64? or set a max cap on segmefts
-    let theta = (2.0 * 3.1415926) / f32::from(segments);
+    let theta = (2.0 * std::f32::consts::PI) / f32::from(segments);
     let tangential_factor = theta.tan();
     let radial_factor = theta.cos();
 

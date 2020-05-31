@@ -25,6 +25,7 @@ fn main() -> Result<(), ()> {
     let mut render_system = systems::RenderSystem::new().unwrap();
     let physics_system = systems::PhysicsSystem::new();
     let collision_system = systems::CollisionSystem::new();
+    let mut logic_system = systems::LogicSystem::new();
 
     let mut entity_manager = EntityManager::new();
     let mut component_manager = ComponentManager::new();
@@ -32,10 +33,7 @@ fn main() -> Result<(), ()> {
     let player_entity = entity_manager.next();
     component_manager.set_position_component(
         player_entity,
-        PositionComponent {
-            x: 0.0f32,
-            y: 0.0f32,
-        },
+        PositionComponent::new_wrapping(0.0f32, 0.0f32),
     );
     // component_manager.set_render_component(triangle_entity, unsafe {
     //     RenderComponent::new_triangle(100f32)
@@ -49,7 +47,9 @@ fn main() -> Result<(), ()> {
     });
     component_manager.set_collision_component(player_entity, CollisionComponent::new(player_size));
 
-    component_manager.set_body_component(player_entity, BodyComponent::new(8.0));
+    component_manager.set_body_component(player_entity, BodyComponent::new(10.0));
+
+    let mut player_orientation = 0.0f32;
 
     //++++++++++++++++++++//
     //  collision entity //
@@ -57,17 +57,15 @@ fn main() -> Result<(), ()> {
     let collision_entity = entity_manager.next();
     component_manager.set_position_component(
         collision_entity,
-        PositionComponent {
-            x: 250.0f32,
-            y: 250.0,
-        },
+        PositionComponent::new_wrapping(250.0f32, 250.0),
     );
-    let collision_size = 50.0;
+    let collision_size = 60.0;
     component_manager.set_render_component(collision_entity, unsafe {
         RenderComponent::new_circle(collision_size)
     });
     component_manager
         .set_collision_component(collision_entity, CollisionComponent::new(collision_size));
+    component_manager.set_body_component(collision_entity, BodyComponent::new(20.0));
 
     let mut last_instant = std::time::Instant::now();
 
@@ -75,12 +73,16 @@ fn main() -> Result<(), ()> {
         Event::EventsCleared => {
             // Application update code.
 
-            collision_system.run(&mut component_manager);
-
             let new_instant = std::time::Instant::now();
             let dt = (new_instant - last_instant).as_secs_f64();
             last_instant = new_instant;
             physics_system.run(dt, &mut component_manager);
+
+            collision_system.run(&mut component_manager, |a, b| {
+                logic_system.push_event(LogicMessage::Collision(a, b))
+            });
+
+            logic_system.run(&mut entity_manager, &mut component_manager);
 
             // Queue a RedrawRequested event.
             gl_current.window().request_redraw();
@@ -114,7 +116,7 @@ fn main() -> Result<(), ()> {
             ..
         } => {
             if let Some(key_code) = input.virtual_keycode {
-                let force_to_apply = 50000.0;
+                let force_to_apply = 500_000.0;
 
                 match key_code {
                     glutin::event::VirtualKeyCode::Escape => {
@@ -139,6 +141,18 @@ fn main() -> Result<(), ()> {
                     glutin::event::VirtualKeyCode::D => {
                         component_manager.update_body_component(player_entity, |body| {
                             body.apply_force_x(force_to_apply)
+                        });
+                    }
+                    glutin::event::VirtualKeyCode::Q => {
+                        player_orientation += std::f32::consts::PI / 12.0;
+                    }
+                    glutin::event::VirtualKeyCode::E => {
+                        player_orientation -= std::f32::consts::PI / 12.0;
+                    }
+                    glutin::event::VirtualKeyCode::Space => {
+                        logic_system.push_event(LogicMessage::Shoot {
+                            shooter: player_entity,
+                            orientation: player_orientation,
                         });
                     }
                     _ => (),

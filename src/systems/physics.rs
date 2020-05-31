@@ -6,10 +6,10 @@ pub struct PhysicsSystem {}
 
 #[derive(Clone, Debug)]
 pub struct BodyComponent {
-    net_force: glm::TVec2<f64>,
-    acceleration: glm::TVec2<f64>,
-    velocity: glm::TVec2<f64>,
-    mass: f64,
+    pub net_force: glm::TVec2<f64>,
+    pub acceleration: glm::TVec2<f64>,
+    pub velocity: glm::TVec2<f64>,
+    pub mass: f64,
 }
 
 impl PhysicsSystem {
@@ -39,8 +39,8 @@ impl PhysicsSystem {
 
                 let rho = 1.2;
                 // this things should come from the object
-                let coeff = 0.3;
-                let a = 0.5;
+                let coeff = 0.4;
+                let a = 1.5;
                 let air_drag = 0.5
                     * rho
                     * a
@@ -62,10 +62,10 @@ impl PhysicsSystem {
                 *net_force = glm::zero();
 
                 // TODO: just store a glm::vec2 in PositionComponent?
-                components.position[index] = Some(PositionComponent {
-                    x: new_pos.x as f32,
-                    y: new_pos.y as f32,
-                });
+                components.position[index] = Some(PositionComponent::new_wrapping(
+                    new_pos.x as f32,
+                    new_pos.y as f32,
+                ));
             }
         }
     }

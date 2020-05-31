@@ -1,8 +1,9 @@
 mod graphics;
 pub mod systems;
 pub use graphics::RenderComponent;
+use nalgebra_glm as glm;
 use std::convert::TryInto;
-pub use systems::{BodyComponent, CollisionComponent};
+pub use systems::{BodyComponent, BulletComponent, CollisionComponent, LogicMessage};
 
 const X_MAX: f32 = 800.0f32;
 const Y_MAX: f32 = 800.0f32;
@@ -27,10 +28,10 @@ impl EntityManager {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct PositionComponent {
-    pub x: f32,
-    pub y: f32,
+    x: f32,
+    y: f32,
 }
 
 pub struct ComponentManager {
@@ -38,6 +39,7 @@ pub struct ComponentManager {
     render: Vec<Option<RenderComponent>>,
     body: Vec<Option<BodyComponent>>,
     collision: Vec<Option<CollisionComponent>>,
+    bullet: Vec<Option<BulletComponent>>,
 }
 
 impl ComponentManager {
@@ -47,6 +49,7 @@ impl ComponentManager {
             render: vec![],
             body: vec![],
             collision: vec![],
+            bullet: vec![],
         }
     }
 
@@ -76,6 +79,10 @@ impl ComponentManager {
         Self::set_component(&mut self.collision, entity, component);
     }
 
+    pub fn set_bullet_component(&mut self, entity: Entity, component: BulletComponent) {
+        Self::set_component(&mut self.bullet, entity, component);
+    }
+
     pub fn update_position_component(
         &mut self,
         entity: Entity,
@@ -100,5 +107,44 @@ impl ComponentManager {
                 f(entry)
             }
         }
+    }
+
+    pub fn remove_entity(&mut self, entity: Entity) {
+        self.position[entity.0 as usize] = None;
+        self.render[entity.0 as usize] = None;
+        self.body[entity.0 as usize] = None;
+        self.collision[entity.0 as usize] = None;
+        self.bullet[entity.0 as usize] = None;
+    }
+}
+
+impl PositionComponent {
+    pub fn new_wrapping(x: f32, y: f32) -> PositionComponent {
+        let x = if x < 0.0 { x + std::f32::MAX } else { x };
+        let y = if y < 0.0 { y + std::f32::MAX } else { y };
+        PositionComponent {
+            x: x % X_MAX,
+            y: y % Y_MAX,
+        }
+    }
+
+    pub fn set_x_wrap(&mut self, x: f32) {
+        self.x = x % X_MAX;
+    }
+
+    pub fn set_y_wrap(&mut self, y: f32) {
+        self.y = y % Y_MAX;
+    }
+}
+
+impl From<glm::Vec2> for PositionComponent {
+    fn from(pos: glm::Vec2) -> PositionComponent {
+        PositionComponent { x: pos.x, y: pos.y }
+    }
+}
+
+impl Into<glm::Vec2> for PositionComponent {
+    fn into(self) -> glm::Vec2 {
+        glm::vec2(self.x, self.y)
     }
 }
