@@ -1,8 +1,8 @@
 use crate::ComponentManager;
 use crate::Entity;
-use crate::PositionComponent;
 use nalgebra_glm as glm;
 
+#[derive(Default)]
 pub struct CollisionSystem {}
 
 #[derive(Clone, Debug)]
@@ -23,9 +23,11 @@ impl CollisionSystem {
         let len = components.collision.len();
         for (index1, collision) in components.collision[..len - 1].iter().enumerate() {
             if let Some(collision1) = collision {
-                let PositionComponent { x, y } = components.position[index1]
+                let pos1 = components.position[index1]
                     .as_ref()
-                    .expect("collision object doesn't have a position");
+                    .expect("collision object doesn't have a position")
+                    .clone()
+                    .into();
 
                 let body1 = components.body[index1]
                     .as_ref()
@@ -34,16 +36,16 @@ impl CollisionSystem {
                 let v1 = body1.velocity;
                 let m1 = body1.mass;
 
-                let pos1: glm::TVec2<f32> = glm::vec2(f32::from(*x), f32::from(*y));
-
                 for (index2, collision_other) in
                     components.collision.iter().enumerate().skip(index1 + 1)
                 {
                     match collision_other {
                         Some(collision2) if index1 != index2 => {
-                            let PositionComponent { x, y } = components.position[index2]
+                            let pos2 = components.position[index2]
                                 .as_ref()
-                                .expect("collision object doesn't have a position");
+                                .expect("collision object doesn't have a position")
+                                .clone()
+                                .into();
 
                             let body2 = components.body[index2]
                                 .as_ref()
@@ -51,11 +53,9 @@ impl CollisionSystem {
                             let v2 = body2.velocity;
                             let m2 = body2.mass;
 
-                            let pos2: glm::TVec2<f32> = glm::vec2(f32::from(*x), f32::from(*y));
+                            let distance2 = glm::distance2(&pos1, &pos2);
 
-                            let distance = glm::distance2(&pos1, &pos2);
-
-                            if distance < (collision1.radius + collision2.radius).powf(2.0).into() {
+                            if distance2 < (collision1.radius + collision2.radius).powf(2.0) {
                                 let c1 = glm::vec2(pos1.x.into(), pos1.y.into());
                                 let c2 = glm::vec2(pos2.x.into(), pos2.y.into());
                                 let r1 = collision1.radius;
@@ -73,7 +73,7 @@ impl CollisionSystem {
                                 new_pos2.set_x_wrap(p2.x as f32);
                                 new_pos2.set_y_wrap(p2.y as f32);
 
-                                let collision_direction = (c2 - c1) / glm::distance(&c2, &c1);
+                                let collision_direction = (p2 - p1) / glm::distance(&p2, &p1);
 
                                 let cu1 = glm::dot(&v1, &collision_direction);
                                 let cu2 = glm::dot(&v2, &collision_direction);
@@ -83,10 +83,11 @@ impl CollisionSystem {
 
                                 let m = m1 + m2;
 
+                                // XXX: I have no idea why do I need those abs()?
                                 components.body[index1].as_mut().unwrap().velocity -=
-                                    collision_direction * cv1 / m;
+                                    collision_direction * cv1.abs() / m;
                                 components.body[index2].as_mut().unwrap().velocity +=
-                                    collision_direction * cv2 / m;
+                                    collision_direction * cv2.abs() / m;
 
                                 on_collision(Entity(index1 as u32), Entity(index2 as u32))
                             }
@@ -125,6 +126,7 @@ fn solve_quadratic(a: f64, b: f64, c: f64) -> QuadraticSolution {
     }
 }
 
+#[allow(clippy::many_single_char_names)]
 fn get_collision_points(
     c1: glm::DVec2,
     c2: glm::DVec2,
@@ -133,8 +135,11 @@ fn get_collision_points(
     r1: f32,
     r2: f32,
 ) -> (glm::DVec2, glm::DVec2) {
+    // relative position of c2 with respect to c1
     let p = c2 - c1;
+    // relative velocity of c2 with respect to c1
     let v = v2 - v1;
+    // the quadratic terms
     let a: f64 = glm::magnitude2(&v);
     let b: f64 = glm::dot(&v, &p) * 2.0;
     let c: f64 = glm::magnitude2(&p) - f64::from((r1 + r2).powf(2.0));
