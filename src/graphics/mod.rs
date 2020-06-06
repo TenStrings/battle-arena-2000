@@ -2,6 +2,7 @@ use gl::types::{GLenum, GLfloat, GLint, GLsizei, GLsizeiptr, GLuint};
 use nalgebra_glm as glm;
 use std::convert::TryInto;
 use std::ffi::{c_void, CStr, CString};
+use std::ptr::{null, null_mut};
 
 #[derive(Debug, Clone)]
 pub struct OpenGLError {
@@ -39,6 +40,9 @@ pub enum RenderComponent {
 }
 
 impl RenderComponent {
+    ///  # Safety
+    ///  this is unsafe because every opengl function operates over an
+    ///  invisible mutable state
     pub unsafe fn new_triangle(width: f32, height: f32) -> RenderComponent {
         let vao = {
             let mut vao = std::mem::MaybeUninit::<GLuint>::uninit();
@@ -67,7 +71,7 @@ impl RenderComponent {
             gl::FLOAT,                             //type
             gl::FALSE,                             //normalization
             3 * std::mem::size_of::<f32>() as i32, //stride? size of each vertex (attribute)
-            0 as *mut std::ffi::c_void,            // offset where the vertex attribute starts
+            null_mut::<std::ffi::c_void>(),        // offset where the vertex attribute starts
         );
         gl::EnableVertexAttribArray(0);
 
@@ -81,6 +85,9 @@ impl RenderComponent {
         }
     }
 
+    ///  # Safety
+    ///  this is unsafe because every opengl function operates over an
+    ///  invisible mutable state
     pub unsafe fn new_square(width: f32, height: f32) -> RenderComponent {
         let vao = {
             let mut vao = std::mem::MaybeUninit::<GLuint>::uninit();
@@ -133,7 +140,7 @@ impl RenderComponent {
             gl::FLOAT,                             //type
             gl::FALSE,                             //normalization
             3 * std::mem::size_of::<f32>() as i32, //stride? size of each vertex (attribute)
-            0 as *mut std::ffi::c_void,            // offset where the vertex attribute starts
+            null_mut::<std::ffi::c_void>(),        // offset where the vertex attribute starts
         );
 
         gl::EnableVertexAttribArray(0);
@@ -146,6 +153,9 @@ impl RenderComponent {
         }
     }
 
+    ///  # Safety
+    ///  this is unsafe because every opengl function operates over an
+    ///  invisible mutable state
     pub unsafe fn new_circle(r: f32) -> RenderComponent {
         let vao = {
             let mut vao = std::mem::MaybeUninit::<GLuint>::uninit();
@@ -180,7 +190,7 @@ impl RenderComponent {
             gl::FLOAT,                             //type
             gl::FALSE,                             //normalization
             3 * std::mem::size_of::<f32>() as i32, //stride? size of each vertex (attribute)
-            0 as *mut std::ffi::c_void,            // offset where the vertex attribute starts
+            null_mut::<std::ffi::c_void>(),        // offset where the vertex attribute starts
         );
 
         gl::EnableVertexAttribArray(0);
@@ -191,6 +201,69 @@ impl RenderComponent {
             vao,
             first: 0,
             count: segments as GLint,
+            mode: gl::TRIANGLE_FAN,
+            width: 0.8,
+            height: 1.0,
+        }
+    }
+
+    ///  # Safety
+    ///  this is unsafe because every opengl function operates over an
+    ///  invisible mutable state
+    pub unsafe fn new_shooter(r1: f32, r2: f32) -> RenderComponent {
+        let vao = {
+            let mut vao = std::mem::MaybeUninit::<GLuint>::uninit();
+            gl::GenVertexArrays(1, vao.as_mut_ptr());
+            assert_eq!(gl::GetError(), gl::NO_ERROR);
+            vao.assume_init()
+        };
+
+        gl::BindVertexArray(vao);
+
+        let segments1: u16 = (10.0 * r1.sqrt()).floor() as u16;
+        let segments2: u16 = (10.0 * r2.sqrt()).floor() as u16;
+
+        let vertices_main_body = gen_circle(0.0, 0.0, r1, segments1);
+        let vertices_aim_indicator = gen_circle(r1 + 1.5, 0.0, r2, segments2);
+
+        let vertices: Vec<f32> = vertices_main_body
+            .iter()
+            .cloned()
+            .chain(vertices_aim_indicator.iter().cloned())
+            .collect();
+
+        let buffer_id = {
+            let mut buffer_id = std::mem::MaybeUninit::<GLuint>::uninit();
+            gl::GenBuffers(1, buffer_id.as_mut_ptr());
+            buffer_id.assume_init()
+        };
+
+        gl::BindBuffer(gl::ARRAY_BUFFER, buffer_id);
+
+        gl::BufferData(
+            gl::ARRAY_BUFFER,
+            (vertices.len() * std::mem::size_of::<f32>()) as GLsizeiptr,
+            &(vertices[0]) as *const f32 as *const c_void,
+            gl::STATIC_DRAW,
+        );
+
+        gl::VertexAttribPointer(
+            0,                                     //location = 0
+            3,                                     // size of the vertex attribute (vec3)
+            gl::FLOAT,                             //type
+            gl::FALSE,                             //normalization
+            3 * std::mem::size_of::<f32>() as i32, //stride? size of each vertex (attribute)
+            null_mut::<std::ffi::c_void>(),        // offset where the vertex attribute starts
+        );
+
+        gl::EnableVertexAttribArray(0);
+
+        // HACK: for some reason my circles end up as ellipses, so I adjust the scale later to 0.8
+        // TODO: fix the hack^
+        RenderComponent::DrawArrays {
+            vao,
+            first: 0,
+            count: (segments1 + segments2) as GLint,
             mode: gl::TRIANGLE_FAN,
             width: 0.8,
             height: 1.0,
@@ -241,7 +314,7 @@ impl RenderComponent {
                     gl::TRIANGLES,
                     *count,
                     gl::UNSIGNED_INT,
-                    0 as *const std::ffi::c_void,
+                    null::<std::ffi::c_void>(),
                 );
             },
         }
@@ -349,7 +422,7 @@ impl Program {
     pub fn set_translation(&mut self, value: &[f32]) {
         unsafe {
             self.set_uniform_matrix_4fv(
-                CStr::from_bytes_with_nul("translation\0".as_bytes()).unwrap(),
+                CStr::from_bytes_with_nul(b"translation\0").unwrap(),
                 value,
             );
         }
@@ -357,18 +430,19 @@ impl Program {
 
     pub fn set_projection(&mut self, value: &[f32]) {
         unsafe {
-            self.set_uniform_matrix_4fv(
-                CStr::from_bytes_with_nul("projection\0".as_bytes()).unwrap(),
-                value,
-            );
+            self.set_uniform_matrix_4fv(CStr::from_bytes_with_nul(b"projection\0").unwrap(), value);
         }
     }
+
     pub fn set_scale(&mut self, value: &[f32]) {
         unsafe {
-            self.set_uniform_matrix_4fv(
-                CStr::from_bytes_with_nul("scale\0".as_bytes()).unwrap(),
-                value,
-            );
+            self.set_uniform_matrix_4fv(CStr::from_bytes_with_nul(b"scale\0").unwrap(), value);
+        }
+    }
+
+    pub fn set_rotation(&mut self, value: &[f32]) {
+        unsafe {
+            self.set_uniform_matrix_4fv(CStr::from_bytes_with_nul(b"rotation\0").unwrap(), value);
         }
     }
 
