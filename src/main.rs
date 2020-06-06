@@ -30,7 +30,7 @@ fn main() -> Result<(), ()> {
     let mut entity_manager = EntityManager::new();
     let mut component_manager = ComponentManager::new();
 
-    let player_entity = entity_manager.next();
+    let player_entity = entity_manager.next_entity();
     component_manager.set_position_component(
         player_entity,
         PositionComponent::new_wrapping(0.0f32, 0.0f32),
@@ -43,29 +43,28 @@ fn main() -> Result<(), ()> {
     // });
     let player_size = 30.0;
     component_manager.set_render_component(player_entity, unsafe {
-        RenderComponent::new_circle(player_size)
+        RenderComponent::new_shooter(player_size, 5.0)
     });
     component_manager.set_collision_component(player_entity, CollisionComponent::new(player_size));
 
-    component_manager.set_body_component(player_entity, BodyComponent::new(10.0));
-
-    let mut player_orientation = 0.0f32;
+    component_manager.set_body_component(player_entity, BodyComponent::new(10.0, 0.4));
+    component_manager.set_orientation_component(player_entity, OrientationComponent::new(0.0));
 
     //++++++++++++++++++++//
     //  collision entity //
     //++++++++++++++++++//
-    let collision_entity = entity_manager.next();
-    component_manager.set_position_component(
-        collision_entity,
-        PositionComponent::new_wrapping(250.0f32, 250.0),
-    );
-    let collision_size = 60.0;
-    component_manager.set_render_component(collision_entity, unsafe {
-        RenderComponent::new_circle(collision_size)
-    });
-    component_manager
-        .set_collision_component(collision_entity, CollisionComponent::new(collision_size));
-    component_manager.set_body_component(collision_entity, BodyComponent::new(20.0));
+    // let collision_entity = entity_manager.next_entity();
+    // component_manager.set_position_component(
+    //     collision_entity,
+    //     PositionComponent::new_wrapping(250.0f32, 250.0),
+    // );
+    // let collision_size = 60.0;
+    // component_manager.set_render_component(collision_entity, unsafe {
+    //     RenderComponent::new_circle(collision_size)
+    // });
+    // component_manager
+    //     .set_collision_component(collision_entity, CollisionComponent::new(collision_size));
+    // component_manager.set_body_component(collision_entity, BodyComponent::new(20.0, 0.4));
 
     let mut last_instant = std::time::Instant::now();
 
@@ -83,6 +82,13 @@ fn main() -> Result<(), ()> {
             });
 
             logic_system.run(&mut entity_manager, &mut component_manager);
+
+            for entity in entity_manager.iter() {
+                if entity != player_entity {
+                    let position = component_manager.get_position_component(entity).unwrap();
+                    println!("{:?} - {:?}", entity, position);
+                }
+            }
 
             // Queue a RedrawRequested event.
             gl_current.window().request_redraw();
@@ -118,42 +124,62 @@ fn main() -> Result<(), ()> {
             if let Some(key_code) = input.virtual_keycode {
                 let force_to_apply = 500_000.0;
 
-                match key_code {
-                    glutin::event::VirtualKeyCode::Escape => {
+                use glutin::event::ElementState;
+                match (key_code, input.state) {
+                    (glutin::event::VirtualKeyCode::Escape, ElementState::Pressed) => {
                         println!("The escape key was pressed; stopping");
                         *control_flow = ControlFlow::Exit;
                     }
-                    glutin::event::VirtualKeyCode::W => {
+                    (glutin::event::VirtualKeyCode::W, ElementState::Pressed) => {
+                        let orientation = *component_manager
+                            .get_orientation_component(player_entity)
+                            .expect("player has no orientation");
+
                         component_manager.update_body_component(player_entity, |body| {
-                            body.apply_force_y(force_to_apply)
+                            body.apply_force_x(f64::from(orientation.angle.cos()) * force_to_apply);
+                            body.apply_force_y(f64::from(orientation.angle.sin()) * force_to_apply);
                         });
                     }
-                    glutin::event::VirtualKeyCode::A => {
+                    (glutin::event::VirtualKeyCode::S, ElementState::Pressed) => {
+                        let orientation = *component_manager
+                            .get_orientation_component(player_entity)
+                            .expect("player has no orientation");
+
                         component_manager.update_body_component(player_entity, |body| {
-                            body.apply_force_x(-force_to_apply)
+                            body.apply_force_x(
+                                -f64::from(orientation.angle.cos()) * force_to_apply,
+                            );
+                            body.apply_force_y(
+                                -f64::from(orientation.angle.sin()) * force_to_apply,
+                            );
                         });
                     }
-                    glutin::event::VirtualKeyCode::S => {
-                        component_manager.update_body_component(player_entity, |body| {
-                            body.apply_force_y(-force_to_apply)
-                        });
+                    (glutin::event::VirtualKeyCode::A, ElementState::Pressed) => {
+                        // player_orientation += std::f32::consts::PI / 12.0;
+                        component_manager.update_orientation_component(
+                            player_entity,
+                            |component| {
+                                component.angle += std::f32::consts::PI / 80.0;
+                            },
+                        );
                     }
-                    glutin::event::VirtualKeyCode::D => {
-                        component_manager.update_body_component(player_entity, |body| {
-                            body.apply_force_x(force_to_apply)
-                        });
+                    (glutin::event::VirtualKeyCode::D, ElementState::Pressed) => {
+                        component_manager.update_orientation_component(
+                            player_entity,
+                            |component| {
+                                component.angle -= std::f32::consts::PI / 80.0;
+                            },
+                        );
                     }
-                    glutin::event::VirtualKeyCode::Q => {
-                        player_orientation += std::f32::consts::PI / 12.0;
-                    }
-                    glutin::event::VirtualKeyCode::E => {
-                        player_orientation -= std::f32::consts::PI / 12.0;
-                    }
-                    glutin::event::VirtualKeyCode::Space => {
-                        logic_system.push_event(LogicMessage::Shoot {
-                            shooter: player_entity,
-                            orientation: player_orientation,
-                        });
+                    (glutin::event::VirtualKeyCode::Space, ElementState::Pressed) => {
+                        if let Some(OrientationComponent { angle }) =
+                            component_manager.get_orientation_component(player_entity)
+                        {
+                            logic_system.push_event(LogicMessage::Shoot {
+                                shooter: player_entity,
+                                orientation: *angle,
+                            });
+                        }
                     }
                     _ => (),
                 }
