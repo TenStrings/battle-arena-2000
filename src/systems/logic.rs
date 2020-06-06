@@ -29,7 +29,13 @@ impl LogicSystem {
             match msg {
                 LogicMessage::Collision(a, b) => {
                     for e in &[a, b] {
-                        if components.bullet[e.0 as usize].is_some() {
+                        if components
+                            .bullet
+                            .get(e.0 as usize)
+                            .map(|c| c.is_some())
+                            .unwrap_or(false)
+                        {
+                            entity_manager.remove_entity(*e);
                             components.remove_entity(*e);
                         }
                     }

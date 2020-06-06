@@ -1,5 +1,7 @@
+mod entity_manager;
 mod graphics;
 pub mod systems;
+pub use entity_manager::*;
 pub use graphics::RenderComponent;
 use nalgebra_glm as glm;
 use std::convert::TryInto;
