@@ -1,10 +1,10 @@
 use crate::{
-    BodyComponent, CollisionComponent, ComponentManager, Entity, EntityManager, PositionComponent,
-    RenderComponent,
+    BodyComponent, CollisionComponent, ComponentManager, Entity, EntityManager, RenderComponent,
 };
 use nalgebra_glm as glm;
 use std::collections::VecDeque;
 
+#[derive(Default)]
 pub struct LogicSystem {
     msg_box: VecDeque<LogicMessage>,
 }
@@ -44,8 +44,7 @@ impl LogicSystem {
                     shooter,
                     orientation,
                 } => {
-                    println!("shooting bullet");
-                    let bullet_entity = entity_manager.next();
+                    let bullet_entity = entity_manager.next_entity();
                     let shooter_position = components.position[shooter.0 as usize]
                         .as_ref()
                         .expect("no position for shooter");
@@ -57,7 +56,7 @@ impl LogicSystem {
                     let bullet_size = 10.0;
 
                     let bullet_direction: glm::Vec2 =
-                        glm::vec2(orientation.cos().into(), orientation.sin().into());
+                        glm::vec2(orientation.cos(), orientation.sin());
 
                     let bullet_position: glm::Vec2 =
                         glm::vec2(shooter_position.x, shooter_position.y)
@@ -74,7 +73,7 @@ impl LogicSystem {
                         CollisionComponent::new(bullet_size),
                     );
 
-                    let mut body = BodyComponent::new(10.0);
+                    let mut body = BodyComponent::new(10.0, 0.1);
                     let bullet_speed = 1000.0;
                     body.velocity =
                         glm::DVec2::new(bullet_direction.x.into(), bullet_direction.y.into())
