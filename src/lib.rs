@@ -10,25 +10,8 @@ pub use systems::{BodyComponent, BulletComponent, CollisionComponent, LogicMessa
 const X_MAX: f32 = 800.0f32;
 const Y_MAX: f32 = 800.0f32;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Entity(u32);
-
-pub struct EntityManager {
-    next: u32,
-}
-
-impl EntityManager {
-    pub fn new() -> EntityManager {
-        EntityManager { next: 0 }
-    }
-
-    pub fn next(&mut self) -> Entity {
-        let next = self.next;
-        self.next += 1;
-
-        Entity(next)
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct PositionComponent {
@@ -36,12 +19,20 @@ pub struct PositionComponent {
     y: f32,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct OrientationComponent {
+    pub angle: f32,
+}
+
+// TODO: make things private?
+#[derive(Default)]
 pub struct ComponentManager {
     position: Vec<Option<PositionComponent>>,
     render: Vec<Option<RenderComponent>>,
     body: Vec<Option<BodyComponent>>,
     collision: Vec<Option<CollisionComponent>>,
     bullet: Vec<Option<BulletComponent>>,
+    orientation: Vec<Option<OrientationComponent>>,
 }
 
 impl ComponentManager {
@@ -52,6 +43,16 @@ impl ComponentManager {
             body: vec![],
             collision: vec![],
             bullet: vec![],
+            orientation: vec![],
+        }
+    }
+
+    fn get_component<T>(pool: &[Option<T>], entity: Entity) -> Option<&T> {
+        let index: usize = entity.0.try_into().unwrap();
+        if let Some(entry) = pool.get(index) {
+            entry.as_ref()
+        } else {
+            None
         }
     }
 
@@ -85,6 +86,18 @@ impl ComponentManager {
         Self::set_component(&mut self.bullet, entity, component);
     }
 
+    pub fn set_orientation_component(&mut self, entity: Entity, component: OrientationComponent) {
+        Self::set_component(&mut self.orientation, entity, component);
+    }
+
+    pub fn get_position_component(&self, entity: Entity) -> Option<&PositionComponent> {
+        Self::get_component(&self.position, entity)
+    }
+
+    pub fn get_orientation_component(&self, entity: Entity) -> Option<&OrientationComponent> {
+        Self::get_component(&self.orientation, entity)
+    }
+
     pub fn update_position_component(
         &mut self,
         entity: Entity,
@@ -105,6 +118,19 @@ impl ComponentManager {
     ) {
         let index: usize = entity.0.try_into().unwrap();
         if let Some(entry) = self.body.get_mut(index) {
+            if let Some(entry) = entry {
+                f(entry)
+            }
+        }
+    }
+
+    pub fn update_orientation_component(
+        &mut self,
+        entity: Entity,
+        mut f: impl FnMut(&mut OrientationComponent) -> (),
+    ) {
+        let index: usize = entity.0.try_into().unwrap();
+        if let Some(entry) = self.orientation.get_mut(index) {
             if let Some(entry) = entry {
                 f(entry)
             }
@@ -136,6 +162,12 @@ impl PositionComponent {
 
     pub fn set_y_wrap(&mut self, y: f32) {
         self.y = y % Y_MAX;
+    }
+}
+
+impl OrientationComponent {
+    pub fn new(angle: f32) -> OrientationComponent {
+        OrientationComponent { angle }
     }
 }
 
