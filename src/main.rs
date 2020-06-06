@@ -1,9 +1,8 @@
-use gl::types::{GLsizeiptr, GLuint};
+extern crate simple_platformer;
 use glutin::{event::Event, event::WindowEvent, event_loop::ControlFlow, Api, GlRequest};
-use std::convert::TryInto;
-use std::ffi::{c_void, CStr};
+use simple_platformer::*;
 
-fn main() {
+fn main() -> Result<(), ()> {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
         .with_title("Hello world!")
@@ -23,149 +22,73 @@ fn main() {
 
     let mut dpi = gl_current.window().hidpi_factor();
 
-    let mut color: [f32; 4] = [0.3, 0.4, 0.1, 1.0];
+    let mut render_system = systems::RenderSystem::new().unwrap();
+    let physics_system = systems::PhysicsSystem::new();
+    let collision_system = systems::CollisionSystem::new();
+    let mut logic_system = systems::LogicSystem::new();
 
-    let vertices = [-0.5f32, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0];
+    let mut entity_manager = EntityManager::new();
+    let mut component_manager = ComponentManager::new();
 
-    let vertex_shader_src = std::ffi::CString::new(
-        r#"
-        #version 330 core
-        layout (location = 0) in vec3 aPos;
+    let player_entity = entity_manager.next_entity();
+    component_manager.set_position_component(
+        player_entity,
+        PositionComponent::new_wrapping(0.0f32, 0.0f32),
+    );
+    // component_manager.set_render_component(triangle_entity, unsafe {
+    //     RenderComponent::new_triangle(100f32)
+    // });
+    // component_manager.set_render_component(triangle_entity, unsafe {
+    //     RenderComponent::new_square(100f32, 200.0)
+    // });
+    let player_size = 30.0;
+    component_manager.set_render_component(player_entity, unsafe {
+        RenderComponent::new_shooter(player_size, 5.0)
+    });
+    component_manager.set_collision_component(player_entity, CollisionComponent::new(player_size));
 
-        void main()
-        {
-            gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-        }
-    "#,
-    )
-    .expect("vertex shader is not a valid CString");
+    component_manager.set_body_component(player_entity, BodyComponent::new(10.0, 0.4));
+    component_manager.set_orientation_component(player_entity, OrientationComponent::new(0.0));
 
-    let vertex_shader = unsafe {
-        let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
-        gl::ShaderSource(
-            vertex_shader,
-            1,
-            &(vertex_shader_src.as_ptr() as *const u8 as *const i8) as *const *const i8,
-            std::ptr::null(),
-        );
-        gl::CompileShader(vertex_shader);
+    //++++++++++++++++++++//
+    //  collision entity //
+    //++++++++++++++++++//
+    // let collision_entity = entity_manager.next_entity();
+    // component_manager.set_position_component(
+    //     collision_entity,
+    //     PositionComponent::new_wrapping(250.0f32, 250.0),
+    // );
+    // let collision_size = 60.0;
+    // component_manager.set_render_component(collision_entity, unsafe {
+    //     RenderComponent::new_circle(collision_size)
+    // });
+    // component_manager
+    //     .set_collision_component(collision_entity, CollisionComponent::new(collision_size));
+    // component_manager.set_body_component(collision_entity, BodyComponent::new(20.0, 0.4));
 
-        let mut success: i32 = std::mem::uninitialized();
-        let mut buffer = [0u8; 512];
-        gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success as *mut i32);
-
-        if success != gl::TRUE.try_into().unwrap() {
-            gl::GetShaderInfoLog(
-                vertex_shader,
-                512,
-                std::ptr::null_mut(),
-                buffer.as_mut_ptr() as *mut u8 as *mut i8,
-            );
-
-            let c_string = CStr::from_bytes_with_nul(&buffer).expect("Invalid ShaderInfoLog");
-            println!("{}", c_string.to_str().unwrap());
-        }
-        vertex_shader
-    };
-
-    let fragment_shader_src = std::ffi::CString::new(
-        r#"
-        #version 330 core
-        out vec4 FragColor;
-
-        void main()
-        {
-            FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
-        } 
-    "#,
-    )
-    .unwrap();
-
-    let fragment_shader = unsafe {
-        let fragment_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
-        gl::ShaderSource(
-            fragment_shader,
-            1,
-            &(fragment_shader_src.as_ptr() as *const u8 as *const i8) as *const *const i8,
-            std::ptr::null(),
-        );
-        gl::CompileShader(fragment_shader);
-
-        let mut success: i32 = std::mem::uninitialized();
-        let mut buffer = [0u8; 512];
-        gl::GetShaderiv(
-            fragment_shader,
-            gl::COMPILE_STATUS,
-            &mut success as *mut i32,
-        );
-        if success != gl::TRUE.into() {
-            gl::GetShaderInfoLog(
-                fragment_shader,
-                512,
-                std::ptr::null_mut(),
-                buffer.as_mut_ptr() as *mut u8 as *mut i8,
-            );
-            let c_string = CStr::from_bytes_with_nul(&buffer).unwrap();
-            println!("{}", c_string.to_str().unwrap());
-        }
-        fragment_shader
-    };
-
-    let program = unsafe {
-        let program = gl::CreateProgram();
-        gl::AttachShader(program, vertex_shader);
-        gl::AttachShader(program, fragment_shader);
-        gl::LinkProgram(program);
-
-        let mut success: i32 = std::mem::uninitialized();
-        gl::GetProgramiv(program, gl::LINK_STATUS, &mut success as *mut i32);
-        if (success != gl::TRUE.into()) {
-            eprintln!("Error in link");
-        }
-
-        gl::DeleteShader(vertex_shader);
-        gl::DeleteShader(fragment_shader);
-        gl::UseProgram(program);
-        program
-    };
-
-    let vao = unsafe {
-        let mut vao: GLuint = std::mem::uninitialized();
-        gl::GenVertexArrays(1, &mut vao as *mut GLuint);
-        vao
-    };
-
-    unsafe {
-        gl::BindVertexArray(vao);
-    }
-    unsafe {
-        let mut buffer_id: gl::types::GLuint = std::mem::uninitialized();
-        gl::GenBuffers(1, &mut buffer_id as *mut GLuint);
-        gl::BindBuffer(gl::ARRAY_BUFFER, buffer_id);
-        gl::BufferData(
-            gl::ARRAY_BUFFER,
-            std::mem::size_of_val(&vertices) as GLsizeiptr,
-            &(vertices[0]) as *const f32 as *const c_void,
-            gl::STATIC_DRAW,
-        );
-        buffer_id
-    };
-
-    unsafe {
-        gl::VertexAttribPointer(
-            0,                                     //location = 0
-            3,                                     // size of the vertex attribute (vec3)
-            gl::FLOAT,                             //type
-            gl::FALSE,                             //normalization
-            3 * std::mem::size_of::<f32>() as i32, //stride? size of each vertex (attribute)
-            0 as *mut std::ffi::c_void,            // offset where the vertex attribute starts
-        );
-        gl::EnableVertexAttribArray(0);
-    }
+    let mut last_instant = std::time::Instant::now();
 
     event_loop.run(move |event, _, control_flow| match event {
         Event::EventsCleared => {
             // Application update code.
+
+            let new_instant = std::time::Instant::now();
+            let dt = (new_instant - last_instant).as_secs_f64();
+            last_instant = new_instant;
+            physics_system.run(dt, &mut component_manager);
+
+            collision_system.run(&mut component_manager, |a, b| {
+                logic_system.push_event(LogicMessage::Collision(a, b))
+            });
+
+            logic_system.run(&mut entity_manager, &mut component_manager);
+
+            for entity in entity_manager.iter() {
+                if entity != player_entity {
+                    let position = component_manager.get_position_component(entity).unwrap();
+                    println!("{:?} - {:?}", entity, position);
+                }
+            }
 
             // Queue a RedrawRequested event.
             gl_current.window().request_redraw();
@@ -180,13 +103,8 @@ fn main() {
             // rendering in here allows the program to gracefully handle redraws requested
             // by the OS.
             //
-            let [r, g, b, a] = color;
-            unsafe {
-                gl::ClearColor(r, g, b, a);
-                gl::Clear(gl::COLOR_BUFFER_BIT);
+            render_system.render(&component_manager);
 
-                gl::DrawArrays(gl::TRIANGLES, 0, 3);
-            }
             gl_current.swap_buffers().unwrap();
         }
         Event::WindowEvent {
@@ -204,14 +122,64 @@ fn main() {
             ..
         } => {
             if let Some(key_code) = input.virtual_keycode {
-                match key_code {
-                    glutin::event::VirtualKeyCode::Escape => {
+                let force_to_apply = 500_000.0;
+
+                use glutin::event::ElementState;
+                match (key_code, input.state) {
+                    (glutin::event::VirtualKeyCode::Escape, ElementState::Pressed) => {
                         println!("The escape key was pressed; stopping");
                         *control_flow = ControlFlow::Exit;
                     }
-                    glutin::event::VirtualKeyCode::C => {
-                        println!("C key pressed; changing color");
-                        color = [0.5, 0.5, 0.5, 1.0];
+                    (glutin::event::VirtualKeyCode::W, ElementState::Pressed) => {
+                        let orientation = *component_manager
+                            .get_orientation_component(player_entity)
+                            .expect("player has no orientation");
+
+                        component_manager.update_body_component(player_entity, |body| {
+                            body.apply_force_x(f64::from(orientation.angle.cos()) * force_to_apply);
+                            body.apply_force_y(f64::from(orientation.angle.sin()) * force_to_apply);
+                        });
+                    }
+                    (glutin::event::VirtualKeyCode::S, ElementState::Pressed) => {
+                        let orientation = *component_manager
+                            .get_orientation_component(player_entity)
+                            .expect("player has no orientation");
+
+                        component_manager.update_body_component(player_entity, |body| {
+                            body.apply_force_x(
+                                -f64::from(orientation.angle.cos()) * force_to_apply,
+                            );
+                            body.apply_force_y(
+                                -f64::from(orientation.angle.sin()) * force_to_apply,
+                            );
+                        });
+                    }
+                    (glutin::event::VirtualKeyCode::A, ElementState::Pressed) => {
+                        // player_orientation += std::f32::consts::PI / 12.0;
+                        component_manager.update_orientation_component(
+                            player_entity,
+                            |component| {
+                                component.angle += std::f32::consts::PI / 80.0;
+                            },
+                        );
+                    }
+                    (glutin::event::VirtualKeyCode::D, ElementState::Pressed) => {
+                        component_manager.update_orientation_component(
+                            player_entity,
+                            |component| {
+                                component.angle -= std::f32::consts::PI / 80.0;
+                            },
+                        );
+                    }
+                    (glutin::event::VirtualKeyCode::Space, ElementState::Pressed) => {
+                        if let Some(OrientationComponent { angle }) =
+                            component_manager.get_orientation_component(player_entity)
+                        {
+                            logic_system.push_event(LogicMessage::Shoot {
+                                shooter: player_entity,
+                                orientation: *angle,
+                            });
+                        }
                     }
                     _ => (),
                 }
@@ -227,9 +195,5 @@ fn main() {
         // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
         // dispatched any events. This is ideal for games and similar applications.
         _ => *control_flow = ControlFlow::Poll,
-        // ControlFlow::Wait pauses the event loop if no events are available to process.
-        // This is ideal for non-game applications that only update in response to user
-        // input, and uses significantly less power/CPU time than ControlFlow::Poll.
-        // _ => *control_flow = ControlFlow::Wait,
     });
 }

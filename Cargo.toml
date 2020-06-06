@@ -8,3 +8,7 @@ edition = "2018"
 winit = "0.20.0-alpha4"
 glutin = "0.22.0-alpha2"
 gl = "0.6.0"
+nalgebra-glm = "0.7.0"
+
+[dev-dependencies]
+proptest = "0.10.0"
