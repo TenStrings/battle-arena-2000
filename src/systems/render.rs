@@ -1,5 +1,5 @@
 use crate::graphics::{OpenGLError, Program};
-use crate::{ComponentManager, PositionComponent};
+use crate::{ComponentManager, OrientationComponent, PositionComponent};
 use crate::{X_MAX, Y_MAX};
 use nalgebra_glm as glm;
 
@@ -13,7 +13,7 @@ impl RenderSystem {
 
         unsafe { program.set_active() };
 
-        let projection = glm::ortho(0.0f32, X_MAX, 0.0f32, Y_MAX, 0.0f32, 0.1f32);
+        let projection = glm::ortho(0.0f32, X_MAX, 0.0f32, Y_MAX, 0.0f32, 1.0f32);
 
         program.set_projection(glm::value_ptr(&projection));
 
@@ -37,6 +37,21 @@ impl RenderSystem {
                 ));
 
                 let translation = glm::translate(&identity, &glm::vec3(*x, *y, 0f32));
+
+                let rotation = match components
+                    .orientation
+                    .get(index)
+                    .map(|inner| inner.as_ref())
+                    .flatten()
+                    .as_ref()
+                {
+                    Some(OrientationComponent { angle }) => {
+                        glm::rotate(&identity, *angle, &glm::vec3(0.0, 0.0, 1.0))
+                    }
+                    None => identity,
+                };
+
+                self.program.set_rotation(glm::value_ptr(&rotation));
 
                 self.program.set_translation(glm::value_ptr(&translation));
 
