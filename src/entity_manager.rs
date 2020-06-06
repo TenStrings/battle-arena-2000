@@ -33,7 +33,7 @@ impl EntityManager {
         }
     }
 
-    pub fn delete_entity(&mut self, entity: Entity) {
+    pub fn remove_entity(&mut self, entity: Entity) {
         if let Some(last) = self.next.checked_sub(1) {
             use std::cmp::Ordering;
             match entity.0.cmp(&last) {
@@ -153,7 +153,7 @@ mod tests {
                     reference.insert(e);
                 }
                 EntityManagerAction::DeleteEntity(e) => {
-                    entity_manager.delete_entity(*e);
+                    entity_manager.remove_entity(*e);
                     println!("deleting entity {:?}", e);
                     reference.remove(&e);
                 }
