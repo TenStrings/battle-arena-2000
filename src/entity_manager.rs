@@ -21,7 +21,7 @@ impl EntityManager {
     }
 
     pub fn next_entity(&mut self) -> Entity {
-        let e = dbg!(&self.deleted).iter().cloned().next();
+        let e = self.deleted.iter().cloned().next();
         if let Some(e) = e {
             self.deleted.remove(&e);
             Entity(e)
@@ -109,7 +109,7 @@ mod tests {
                         reference.insert(e);
                     },
                     EntityManagerAction::DeleteEntity(e) => {
-                        entity_manager.delete_entity(*e);
+                        entity_manager.remove_entity(*e);
                         println!("deleting entity {:?}", e);
                         reference.remove(&e);
                     },

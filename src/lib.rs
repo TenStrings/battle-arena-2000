@@ -98,6 +98,14 @@ impl ComponentManager {
         Self::get_component(&self.orientation, entity)
     }
 
+    pub fn get_body_component(&self, entity: Entity) -> Option<&BodyComponent> {
+        Self::get_component(&self.body, entity)
+    }
+
+    pub fn get_bullet_component(&self, entity: Entity) -> Option<&BulletComponent> {
+        Self::get_component(&self.bullet, entity)
+    }
+
     pub fn update_position_component(
         &mut self,
         entity: Entity,

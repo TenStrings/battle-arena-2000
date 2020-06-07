@@ -84,6 +84,24 @@ impl LogicSystem {
                 }
             }
         }
+
+        let mut entities_to_delete = vec![];
+
+        for entity in entity_manager.iter() {
+            let body = components.get_body_component(entity);
+            let bullet = components.get_bullet_component(entity);
+
+            if bullet.is_some() {
+                if glm::magnitude(&body.unwrap().velocity) < 60.0 {
+                    entities_to_delete.push(entity);
+                }
+            }
+        }
+
+        for entity in entities_to_delete {
+            entity_manager.remove_entity(entity);
+            components.remove_entity(entity);
+        }
     }
 
     pub fn push_event(&mut self, event: LogicMessage) {
