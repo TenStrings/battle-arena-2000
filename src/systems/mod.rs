@@ -1,8 +1,10 @@
 mod collision;
+mod debuff;
 mod logic;
 mod physics;
 mod render;
 pub use collision::*;
+pub use debuff::*;
 pub use logic::*;
 pub use physics::*;
 pub use render::*;
