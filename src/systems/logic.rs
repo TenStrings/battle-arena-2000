@@ -126,10 +126,8 @@ impl LogicSystem {
             let bullet = components.get_bullet_component(entity);
             let position = components.get_position_component(entity);
 
-            if bullet.is_some() {
-                if glm::magnitude(&body.unwrap().velocity) < 60.0 {
-                    entities_to_delete.push(entity);
-                }
+            if bullet.is_some() && glm::magnitude(&body.unwrap().velocity) < 60.0 {
+                entities_to_delete.push(entity);
             }
 
             if let Some(health) = components.get_health_component(entity) {
@@ -157,14 +155,12 @@ impl LogicSystem {
         for (index, timer) in self.timers.iter_mut().enumerate() {
             if let Some(time_remaining) = timer.remaining.checked_sub(dt) {
                 timer.remaining = time_remaining;
+            } else if let Some(new_duration) =
+                (timer.on_expiration)(&mut self.msg_box, entity_manager, components)
+            {
+                timer.remaining = new_duration;
             } else {
-                if let Some(new_duration) =
-                    (timer.on_expiration)(&mut self.msg_box, entity_manager, components)
-                {
-                    timer.remaining = new_duration;
-                } else {
-                    timers_to_delete.push(index);
-                }
+                timers_to_delete.push(index);
             }
         }
 
@@ -186,6 +182,12 @@ impl LogicSystem {
 impl Default for BulletComponent {
     fn default() -> BulletComponent {
         BulletComponent {}
+    }
+}
+
+impl Default for LogicSystem {
+    fn default() -> LogicSystem {
+        LogicSystem::new()
     }
 }
 

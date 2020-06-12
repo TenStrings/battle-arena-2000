@@ -141,7 +141,7 @@ impl ComponentManager {
     pub fn update_position_component(
         &mut self,
         entity: Entity,
-        mut f: impl FnMut(&mut PositionComponent) -> (),
+        mut f: impl FnMut(&mut PositionComponent),
     ) {
         let index: usize = entity.0.try_into().unwrap();
         if let Some(entry) = self.position.get_mut(index) {
@@ -151,11 +151,7 @@ impl ComponentManager {
         }
     }
 
-    pub fn update_body_component(
-        &mut self,
-        entity: Entity,
-        mut f: impl FnMut(&mut BodyComponent) -> (),
-    ) {
+    pub fn update_body_component(&mut self, entity: Entity, mut f: impl FnMut(&mut BodyComponent)) {
         let index: usize = entity.0.try_into().unwrap();
         if let Some(entry) = self.body.get_mut(index) {
             if let Some(entry) = entry {
@@ -167,7 +163,7 @@ impl ComponentManager {
     pub fn update_orientation_component(
         &mut self,
         entity: Entity,
-        mut f: impl FnMut(&mut OrientationComponent) -> (),
+        mut f: impl FnMut(&mut OrientationComponent),
     ) {
         let index: usize = entity.0.try_into().unwrap();
         if let Some(entry) = self.orientation.get_mut(index) {
@@ -180,7 +176,7 @@ impl ComponentManager {
     pub fn update_health_component(
         &mut self,
         entity: Entity,
-        mut f: impl FnMut(&mut HealthComponent) -> (),
+        mut f: impl FnMut(&mut HealthComponent),
     ) {
         let index: usize = entity.0.try_into().unwrap();
         if let Some(entry) = self.health.get_mut(index) {
@@ -193,7 +189,7 @@ impl ComponentManager {
     pub fn update_off_arena_debuff_component(
         &mut self,
         entity: Entity,
-        mut f: impl FnMut(&mut OffArenaDebuffComponent) -> (),
+        mut f: impl FnMut(&mut OffArenaDebuffComponent),
     ) {
         let index: usize = entity.0.try_into().unwrap();
         if let Some(entry) = self.off_arena.get_mut(index) {

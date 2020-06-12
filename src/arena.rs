@@ -31,3 +31,9 @@ impl Arena {
             && position.y < (crate::Y_MAX - y_thresh)
     }
 }
+
+impl Default for Arena {
+    fn default() -> Arena {
+        Arena::new()
+    }
+}

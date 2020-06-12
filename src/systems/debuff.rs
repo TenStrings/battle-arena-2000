@@ -70,3 +70,9 @@ impl Default for OffArenaDebuffComponent {
         OffArenaDebuffComponent::new()
     }
 }
+
+impl Default for DebuffSystem {
+    fn default() -> DebuffSystem {
+        DebuffSystem::new()
+    }
+}

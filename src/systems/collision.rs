@@ -18,7 +18,7 @@ impl CollisionSystem {
     pub fn run(
         &self,
         components: &mut ComponentManager,
-        mut on_collision: impl FnMut(Entity, Entity) -> (),
+        mut on_collision: impl FnMut(Entity, Entity),
     ) {
         let len = components.collision.len();
         for (index1, collision) in components.collision[..len - 1].iter().enumerate() {
