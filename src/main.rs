@@ -26,22 +26,18 @@ fn main() -> Result<(), ()> {
     let physics_system = systems::PhysicsSystem::new();
     let collision_system = systems::CollisionSystem::new();
     let mut logic_system = systems::LogicSystem::new();
+    let mut debuff_system = systems::DebuffSystem::new();
 
     let mut entity_manager = EntityManager::new();
     let mut component_manager = ComponentManager::new();
 
     let player_entity = entity_manager.next_entity();
+    let player_size = 30.0;
+
     component_manager.set_position_component(
         player_entity,
         PositionComponent::new_wrapping(0.0f32, 0.0f32),
     );
-    // component_manager.set_render_component(triangle_entity, unsafe {
-    //     RenderComponent::new_triangle(100f32)
-    // });
-    // component_manager.set_render_component(triangle_entity, unsafe {
-    //     RenderComponent::new_square(100f32, 200.0)
-    // });
-    let player_size = 30.0;
     component_manager.set_render_component(player_entity, unsafe {
         RenderComponent::new_shooter(player_size, 5.0)
     });
@@ -49,6 +45,7 @@ fn main() -> Result<(), ()> {
 
     component_manager.set_body_component(player_entity, BodyComponent::new(10.0, 0.4));
     component_manager.set_orientation_component(player_entity, OrientationComponent::new(0.0));
+    component_manager.set_health_component(player_entity, HealthComponent::new(100));
 
     //++++++++++++++++++++//
     //  collision entity //
@@ -68,6 +65,8 @@ fn main() -> Result<(), ()> {
 
     let mut last_instant = std::time::Instant::now();
 
+    let mut arena = Arena::new();
+
     event_loop.run(move |event, _, control_flow| match event {
         Event::EventsCleared => {
             // Application update code.
@@ -81,14 +80,9 @@ fn main() -> Result<(), ()> {
                 logic_system.push_event(LogicMessage::Collision(a, b))
             });
 
-            logic_system.run(&mut entity_manager, &mut component_manager);
+            logic_system.run(&mut arena, &mut entity_manager, &mut component_manager);
 
-            for entity in entity_manager.iter() {
-                if entity != player_entity {
-                    let position = component_manager.get_position_component(entity).unwrap();
-                    println!("{:?} - {:?}", entity, position);
-                }
-            }
+            debuff_system.run(&arena, &entity_manager, &mut component_manager);
 
             // Queue a RedrawRequested event.
             gl_current.window().request_redraw();
@@ -103,7 +97,7 @@ fn main() -> Result<(), ()> {
             // rendering in here allows the program to gracefully handle redraws requested
             // by the OS.
             //
-            render_system.render(&component_manager);
+            render_system.render(&arena, &component_manager);
 
             gl_current.swap_buffers().unwrap();
         }

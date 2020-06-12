@@ -1,5 +1,5 @@
 use crate::graphics::{OpenGLError, Program};
-use crate::{ComponentManager, OrientationComponent, PositionComponent};
+use crate::{Arena, ComponentManager, OrientationComponent, PositionComponent};
 use crate::{X_MAX, Y_MAX};
 use nalgebra_glm as glm;
 
@@ -20,21 +20,37 @@ impl RenderSystem {
         Ok(RenderSystem { program })
     }
 
-    pub fn render(&mut self, components: &ComponentManager) {
-        unsafe {
+    pub fn render(&mut self, arena: &Arena, components: &ComponentManager) {
+        let identity = glm::mat3_to_mat4(&glm::mat3(
+            1f32, 0f32, 0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 1f32,
+        ));
+
+        let arena_width = crate::X_MAX * arena.percent;
+        let arena_height = crate::Y_MAX * arena.percent;
+
+        let x_thresh = (crate::X_MAX - arena_width) / 2.0;
+        let y_thresh = (crate::Y_MAX - arena_height) / 2.0;
+
+        let arena = unsafe {
             gl::ClearColor(0.1, 0.2, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
-        }
+
+            crate::RenderComponent::new_square(arena_width, arena_height)
+        };
+
+        self.program.set_rotation(glm::value_ptr(&identity));
+        let translation = glm::translate(&identity, &glm::vec3(x_thresh, y_thresh, 0f32));
+        self.program.set_translation(glm::value_ptr(&translation));
+
+        self.program.set_color(0.2, 0.1, 0.8);
+
+        arena.draw(&mut self.program);
 
         for (index, render) in components.render.iter().enumerate() {
             if let Some(render) = render {
                 let PositionComponent { x, y } = components.position[index]
                     .as_ref()
                     .expect("render component doesn't have a position");
-
-                let identity = glm::mat3_to_mat4(&glm::mat3(
-                    1f32, 0f32, 0f32, 0f32, 1f32, 0f32, 0f32, 0f32, 1f32,
-                ));
 
                 let translation = glm::translate(&identity, &glm::vec3(*x, *y, 0f32));
 
@@ -54,6 +70,8 @@ impl RenderSystem {
                 self.program.set_rotation(glm::value_ptr(&rotation));
 
                 self.program.set_translation(glm::value_ptr(&translation));
+
+                self.program.set_color(1.0, 0.5, 0.2);
 
                 render.draw(&mut self.program);
             }

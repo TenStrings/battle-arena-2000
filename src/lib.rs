@@ -1,11 +1,16 @@
+mod arena;
 mod entity_manager;
 mod graphics;
 pub mod systems;
+pub use arena::Arena;
 pub use entity_manager::*;
 pub use graphics::RenderComponent;
 use nalgebra_glm as glm;
 use std::convert::TryInto;
-pub use systems::{BodyComponent, BulletComponent, CollisionComponent, LogicMessage};
+pub use systems::{
+    BodyComponent, BulletComponent, CollisionComponent, HealthComponent, LogicMessage,
+    OffArenaDebuffComponent,
+};
 
 const X_MAX: f32 = 800.0f32;
 const Y_MAX: f32 = 800.0f32;
@@ -33,6 +38,8 @@ pub struct ComponentManager {
     collision: Vec<Option<CollisionComponent>>,
     bullet: Vec<Option<BulletComponent>>,
     orientation: Vec<Option<OrientationComponent>>,
+    health: Vec<Option<HealthComponent>>,
+    off_arena: Vec<Option<OffArenaDebuffComponent>>,
 }
 
 impl ComponentManager {
@@ -44,6 +51,8 @@ impl ComponentManager {
             collision: vec![],
             bullet: vec![],
             orientation: vec![],
+            health: vec![],
+            off_arena: vec![],
         }
     }
 
@@ -90,6 +99,18 @@ impl ComponentManager {
         Self::set_component(&mut self.orientation, entity, component);
     }
 
+    pub fn set_health_component(&mut self, entity: Entity, component: HealthComponent) {
+        Self::set_component(&mut self.health, entity, component);
+    }
+
+    pub fn set_off_arena_debuff_component(
+        &mut self,
+        entity: Entity,
+        component: OffArenaDebuffComponent,
+    ) {
+        Self::set_component(&mut self.off_arena, entity, component);
+    }
+
     pub fn get_position_component(&self, entity: Entity) -> Option<&PositionComponent> {
         Self::get_component(&self.position, entity)
     }
@@ -104,6 +125,17 @@ impl ComponentManager {
 
     pub fn get_bullet_component(&self, entity: Entity) -> Option<&BulletComponent> {
         Self::get_component(&self.bullet, entity)
+    }
+
+    pub fn get_health_component(&self, entity: Entity) -> Option<&HealthComponent> {
+        Self::get_component(&self.health, entity)
+    }
+
+    pub fn get_off_arena_debuff_component(
+        &self,
+        entity: Entity,
+    ) -> Option<&OffArenaDebuffComponent> {
+        Self::get_component(&self.off_arena, entity)
     }
 
     pub fn update_position_component(
@@ -145,12 +177,51 @@ impl ComponentManager {
         }
     }
 
+    pub fn update_health_component(
+        &mut self,
+        entity: Entity,
+        mut f: impl FnMut(&mut HealthComponent) -> (),
+    ) {
+        let index: usize = entity.0.try_into().unwrap();
+        if let Some(entry) = self.health.get_mut(index) {
+            if let Some(entry) = entry {
+                f(entry)
+            }
+        }
+    }
+
+    pub fn update_off_arena_debuff_component(
+        &mut self,
+        entity: Entity,
+        mut f: impl FnMut(&mut OffArenaDebuffComponent) -> (),
+    ) {
+        let index: usize = entity.0.try_into().unwrap();
+        if let Some(entry) = self.off_arena.get_mut(index) {
+            if let Some(entry) = entry {
+                f(entry)
+            }
+        }
+    }
+
     pub fn remove_entity(&mut self, entity: Entity) {
-        self.position[entity.0 as usize] = None;
-        self.render[entity.0 as usize] = None;
-        self.body[entity.0 as usize] = None;
-        self.collision[entity.0 as usize] = None;
-        self.bullet[entity.0 as usize] = None;
+        if let Some(ref mut c) = self.position.get_mut(entity.0 as usize) {
+            **c = None;
+        }
+        if let Some(ref mut c) = self.render.get_mut(entity.0 as usize) {
+            **c = None;
+        }
+        if let Some(ref mut c) = self.body.get_mut(entity.0 as usize) {
+            **c = None;
+        }
+        if let Some(ref mut c) = self.collision.get_mut(entity.0 as usize) {
+            **c = None;
+        }
+        if let Some(ref mut c) = self.bullet.get_mut(entity.0 as usize) {
+            **c = None;
+        }
+        if let Some(ref mut c) = self.health.get_mut(entity.0 as usize) {
+            **c = None;
+        }
     }
 }
 

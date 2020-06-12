@@ -446,6 +446,17 @@ impl Program {
         }
     }
 
+    pub fn set_color(&mut self, x: f32, y: f32, z: f32) {
+        unsafe {
+            let location = gl::GetUniformLocation(
+                self.id,
+                CStr::from_bytes_with_nul(b"color\0").unwrap().as_ptr(),
+            );
+
+            gl::Uniform3f(location, x, y, z);
+        }
+    }
+
     unsafe fn set_uniform_matrix_4fv(&mut self, name: impl AsRef<CStr>, value: &[f32]) {
         let location = gl::GetUniformLocation(self.id, name.as_ref().as_ptr());
         gl::UniformMatrix4fv(location, 1, gl::FALSE, value.as_ptr());
