@@ -218,6 +218,9 @@ impl ComponentManager {
         if let Some(ref mut c) = self.health.get_mut(entity.0 as usize) {
             **c = None;
         }
+        if let Some(ref mut c) = self.off_arena.get_mut(entity.0 as usize) {
+            **c = None;
+        }
     }
 }
 
