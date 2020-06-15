@@ -22,30 +22,8 @@ fn main() -> Result<(), ()> {
 
     let mut dpi = gl_current.window().hidpi_factor();
 
-    let mut render_system = systems::RenderSystem::new().unwrap();
-    let physics_system = systems::PhysicsSystem::new();
-    let collision_system = systems::CollisionSystem::new();
-    let mut logic_system = systems::LogicSystem::new();
-    let mut debuff_system = systems::DebuffSystem::new();
-
-    let mut entity_manager = EntityManager::new();
-    let mut component_manager = ComponentManager::new();
-
-    let player_entity = entity_manager.next_entity();
-    let player_size = 30.0;
-
-    component_manager.set_position_component(
-        player_entity,
-        PositionComponent::new_wrapping(0.0f32, 0.0f32),
-    );
-    component_manager.set_render_component(player_entity, unsafe {
-        RenderComponent::new_shooter(player_size, 5.0)
-    });
-    component_manager.set_collision_component(player_entity, CollisionComponent::new(player_size));
-
-    component_manager.set_body_component(player_entity, BodyComponent::new(10.0, 0.4));
-    component_manager.set_orientation_component(player_entity, OrientationComponent::new(0.0));
-    component_manager.set_health_component(player_entity, HealthComponent::new(100));
+    let mut game = Game::new();
+    game.add_player();
 
     //++++++++++++++++++++//
     //  collision entity //
@@ -65,24 +43,15 @@ fn main() -> Result<(), ()> {
 
     let mut last_instant = std::time::Instant::now();
 
-    let mut arena = Arena::new();
-
     event_loop.run(move |event, _, control_flow| match event {
         Event::EventsCleared => {
             // Application update code.
 
             let new_instant = std::time::Instant::now();
-            let dt = (new_instant - last_instant).as_secs_f64();
+            let dt = new_instant - last_instant;
             last_instant = new_instant;
-            physics_system.run(dt, &mut component_manager);
 
-            collision_system.run(&mut component_manager, |a, b| {
-                logic_system.push_event(LogicMessage::Collision(a, b))
-            });
-
-            logic_system.run(&mut arena, &mut entity_manager, &mut component_manager);
-
-            debuff_system.run(&arena, &entity_manager, &mut component_manager);
+            game.update_state(dt);
 
             // Queue a RedrawRequested event.
             gl_current.window().request_redraw();
@@ -97,7 +66,8 @@ fn main() -> Result<(), ()> {
             // rendering in here allows the program to gracefully handle redraws requested
             // by the OS.
             //
-            render_system.render(&arena, &component_manager);
+            // render_system.render(&arena, &component_manager);
+            game.render();
 
             gl_current.swap_buffers().unwrap();
         }
@@ -116,8 +86,6 @@ fn main() -> Result<(), ()> {
             ..
         } => {
             if let Some(key_code) = input.virtual_keycode {
-                let force_to_apply = 500_000.0;
-
                 use glutin::event::ElementState;
                 match (key_code, input.state) {
                     (glutin::event::VirtualKeyCode::Escape, ElementState::Pressed) => {
@@ -125,55 +93,31 @@ fn main() -> Result<(), ()> {
                         *control_flow = ControlFlow::Exit;
                     }
                     (glutin::event::VirtualKeyCode::W, ElementState::Pressed) => {
-                        let orientation = *component_manager
-                            .get_orientation_component(player_entity)
-                            .expect("player has no orientation");
-
-                        component_manager.update_body_component(player_entity, |body| {
-                            body.apply_force_x(f64::from(orientation.angle.cos()) * force_to_apply);
-                            body.apply_force_y(f64::from(orientation.angle.sin()) * force_to_apply);
-                        });
+                        game.player_command(PlayerCommand::Movement{ direction: MovementDirection::Up, action: MovementAction::Start });
+                    }
+                    (glutin::event::VirtualKeyCode::W, ElementState::Released) => {
+                        game.player_command(PlayerCommand::Movement{ direction: MovementDirection::Up, action: MovementAction::Stop });
                     }
                     (glutin::event::VirtualKeyCode::S, ElementState::Pressed) => {
-                        let orientation = *component_manager
-                            .get_orientation_component(player_entity)
-                            .expect("player has no orientation");
-
-                        component_manager.update_body_component(player_entity, |body| {
-                            body.apply_force_x(
-                                -f64::from(orientation.angle.cos()) * force_to_apply,
-                            );
-                            body.apply_force_y(
-                                -f64::from(orientation.angle.sin()) * force_to_apply,
-                            );
-                        });
+                        game.player_command(PlayerCommand::Movement{ direction: MovementDirection::Down, action: MovementAction::Start });
+                    }
+                    (glutin::event::VirtualKeyCode::S, ElementState::Released) => {
+                        game.player_command(PlayerCommand::Movement{ direction: MovementDirection::Down, action: MovementAction::Stop });
                     }
                     (glutin::event::VirtualKeyCode::A, ElementState::Pressed) => {
-                        // player_orientation += std::f32::consts::PI / 12.0;
-                        component_manager.update_orientation_component(
-                            player_entity,
-                            |component| {
-                                component.angle += std::f32::consts::PI / 80.0;
-                            },
-                        );
+                        game.player_command(PlayerCommand::Rotation{ direction: RotationDirection::Left, action: MovementAction::Start });
+                    }
+                    (glutin::event::VirtualKeyCode::A, ElementState::Released) => {
+                        game.player_command(PlayerCommand::Rotation{ direction: RotationDirection::Left, action: MovementAction::Stop });
                     }
                     (glutin::event::VirtualKeyCode::D, ElementState::Pressed) => {
-                        component_manager.update_orientation_component(
-                            player_entity,
-                            |component| {
-                                component.angle -= std::f32::consts::PI / 80.0;
-                            },
-                        );
+                        game.player_command(PlayerCommand::Rotation{ direction: RotationDirection::Right, action: MovementAction::Start });
+                    }
+                    (glutin::event::VirtualKeyCode::D, ElementState::Released) => {
+                        game.player_command(PlayerCommand::Rotation{ direction: RotationDirection::Right, action: MovementAction::Stop });
                     }
                     (glutin::event::VirtualKeyCode::Space, ElementState::Pressed) => {
-                        if let Some(OrientationComponent { angle }) =
-                            component_manager.get_orientation_component(player_entity)
-                        {
-                            logic_system.push_event(LogicMessage::Shoot {
-                                shooter: player_entity,
-                                orientation: *angle,
-                            });
-                        }
+                        game.player_command(PlayerCommand::Shoot);
                     }
                     _ => (),
                 }
