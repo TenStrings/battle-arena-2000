@@ -93,28 +93,52 @@ fn main() -> Result<(), ()> {
                         *control_flow = ControlFlow::Exit;
                     }
                     (glutin::event::VirtualKeyCode::W, ElementState::Pressed) => {
-                        game.player_command(PlayerCommand::Movement{ direction: MovementDirection::Up, action: MovementAction::Start });
+                        game.player_command(PlayerCommand::Movement {
+                            direction: MovementDirection::Up,
+                            action: MovementAction::Start,
+                        });
                     }
                     (glutin::event::VirtualKeyCode::W, ElementState::Released) => {
-                        game.player_command(PlayerCommand::Movement{ direction: MovementDirection::Up, action: MovementAction::Stop });
+                        game.player_command(PlayerCommand::Movement {
+                            direction: MovementDirection::Up,
+                            action: MovementAction::Stop,
+                        });
                     }
                     (glutin::event::VirtualKeyCode::S, ElementState::Pressed) => {
-                        game.player_command(PlayerCommand::Movement{ direction: MovementDirection::Down, action: MovementAction::Start });
+                        game.player_command(PlayerCommand::Movement {
+                            direction: MovementDirection::Down,
+                            action: MovementAction::Start,
+                        });
                     }
                     (glutin::event::VirtualKeyCode::S, ElementState::Released) => {
-                        game.player_command(PlayerCommand::Movement{ direction: MovementDirection::Down, action: MovementAction::Stop });
+                        game.player_command(PlayerCommand::Movement {
+                            direction: MovementDirection::Down,
+                            action: MovementAction::Stop,
+                        });
                     }
                     (glutin::event::VirtualKeyCode::A, ElementState::Pressed) => {
-                        game.player_command(PlayerCommand::Rotation{ direction: RotationDirection::Left, action: MovementAction::Start });
+                        game.player_command(PlayerCommand::Rotation {
+                            direction: RotationDirection::Left,
+                            action: MovementAction::Start,
+                        });
                     }
                     (glutin::event::VirtualKeyCode::A, ElementState::Released) => {
-                        game.player_command(PlayerCommand::Rotation{ direction: RotationDirection::Left, action: MovementAction::Stop });
+                        game.player_command(PlayerCommand::Rotation {
+                            direction: RotationDirection::Left,
+                            action: MovementAction::Stop,
+                        });
                     }
                     (glutin::event::VirtualKeyCode::D, ElementState::Pressed) => {
-                        game.player_command(PlayerCommand::Rotation{ direction: RotationDirection::Right, action: MovementAction::Start });
+                        game.player_command(PlayerCommand::Rotation {
+                            direction: RotationDirection::Right,
+                            action: MovementAction::Start,
+                        });
                     }
                     (glutin::event::VirtualKeyCode::D, ElementState::Released) => {
-                        game.player_command(PlayerCommand::Rotation{ direction: RotationDirection::Right, action: MovementAction::Stop });
+                        game.player_command(PlayerCommand::Rotation {
+                            direction: RotationDirection::Right,
+                            action: MovementAction::Stop,
+                        });
                     }
                     (glutin::event::VirtualKeyCode::Space, ElementState::Pressed) => {
                         game.player_command(PlayerCommand::Shoot);

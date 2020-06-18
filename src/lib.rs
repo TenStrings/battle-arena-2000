@@ -6,7 +6,6 @@ pub use arena::Arena;
 pub use entity_manager::*;
 pub use graphics::RenderComponent;
 use nalgebra_glm as glm;
-use std::collections::VecDeque;
 use std::convert::TryInto;
 pub use systems::{
     BodyComponent, BulletComponent, CollisionComponent, HealthComponent, LogicMessage,
@@ -108,7 +107,7 @@ impl Game {
         };
 
         let mut logic_events = std::collections::VecDeque::new();
-        if let Some(_) = self.player_movement.shooting.take() {
+        if self.player_movement.shooting.take().is_some() {
             if let Some(OrientationComponent { angle }) = self
                 .component_manager
                 .get_orientation_component(player_entity)
