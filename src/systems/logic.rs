@@ -6,7 +6,6 @@ use nalgebra_glm as glm;
 use std::collections::VecDeque;
 
 pub struct LogicSystem {
-    msg_box: VecDeque<LogicMessage>,
     timers: Vec<Timer>,
     last_instant: std::time::Instant,
 }
@@ -14,7 +13,6 @@ pub struct LogicSystem {
 pub enum LogicMessage {
     Collision(Entity, Entity),
     Shoot { shooter: Entity, orientation: f32 },
-    ShrinkMap(f32),
 }
 
 #[derive(Clone)]
@@ -27,7 +25,7 @@ struct Timer {
     remaining: std::time::Duration,
     on_expiration: Box<
         dyn FnMut(
-            &mut VecDeque<LogicMessage>,
+            &mut Arena,
             &mut EntityManager,
             &mut ComponentManager,
         ) -> Option<std::time::Duration>,
@@ -38,13 +36,12 @@ impl LogicSystem {
     pub fn new() -> LogicSystem {
         let map_shrink_timer = Timer {
             remaining: std::time::Duration::from_secs(5),
-            on_expiration: Box::new(|logic_msg_box, _entity_manager, _component_manager| {
-                logic_msg_box.push_back(LogicMessage::ShrinkMap(0.1));
+            on_expiration: Box::new(|arena, _entity_manager, _component_manager| {
+                arena.shrink(0.01);
                 Some(std::time::Duration::from_secs(5))
             }),
         };
         LogicSystem {
-            msg_box: VecDeque::new(),
             timers: vec![map_shrink_timer],
             last_instant: std::time::Instant::now(),
         }
@@ -55,8 +52,9 @@ impl LogicSystem {
         arena: &mut Arena,
         entity_manager: &mut EntityManager,
         components: &mut ComponentManager,
+        mut messages: VecDeque<LogicMessage>,
     ) {
-        while let Some(msg) = self.msg_box.pop_back() {
+        while let Some(msg) = messages.pop_back() {
             match msg {
                 LogicMessage::Collision(a, b) => {
                     for e in &[a, b] {
@@ -70,9 +68,6 @@ impl LogicSystem {
                             components.remove_entity(*e);
                         }
                     }
-                }
-                LogicMessage::ShrinkMap(amount) => {
-                    arena.shrink(amount);
                 }
                 LogicMessage::Shoot {
                     shooter,
@@ -156,7 +151,7 @@ impl LogicSystem {
             if let Some(time_remaining) = timer.remaining.checked_sub(dt) {
                 timer.remaining = time_remaining;
             } else if let Some(new_duration) =
-                (timer.on_expiration)(&mut self.msg_box, entity_manager, components)
+                (timer.on_expiration)(arena, entity_manager, components)
             {
                 timer.remaining = new_duration;
             } else {
@@ -172,10 +167,6 @@ impl LogicSystem {
             entity_manager.remove_entity(entity);
             components.remove_entity(entity);
         }
-    }
-
-    pub fn push_event(&mut self, event: LogicMessage) {
-        self.msg_box.push_back(event);
     }
 }
 
