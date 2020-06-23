@@ -1,11 +1,15 @@
 mod arena;
+pub mod client;
 mod entity_manager;
 mod graphics;
+pub mod network;
+pub mod server;
 pub mod systems;
 pub use arena::Arena;
 pub use entity_manager::*;
 pub use graphics::RenderComponent;
 use nalgebra_glm as glm;
+use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 pub use systems::{
     BodyComponent, BulletComponent, CollisionComponent, HealthComponent, LogicMessage,
@@ -208,29 +212,33 @@ impl Game {
     }
 }
 
-#[derive(Default)]
-struct PlayerState {
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct PlayerState {
     id: Option<Entity>,
     rotating: Option<RotationDirection>,
     moving: Option<MovementDirection>,
     shooting: Option<()>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum MovementDirection {
     Up,
     Down,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum RotationDirection {
     Left,
     Right,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum MovementAction {
     Start,
     Stop,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
 pub enum PlayerCommand {
     Movement {
         direction: MovementDirection,
@@ -243,7 +251,7 @@ pub enum PlayerCommand {
     Shoot,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Entity(u32);
 
 #[derive(Debug, Clone, Copy)]

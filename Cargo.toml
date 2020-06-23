@@ -9,6 +9,12 @@ winit = "0.20.0-alpha4"
 glutin = "0.22.0-alpha2"
 gl = "0.6.0"
 nalgebra-glm = "0.7.0"
+serde = { version = "1.0.113", features = ["derive"] }
+bincode = "1.2.1"
+log = { version = "0.4", features = ["std", "serde"] }
+env_logger = "0.7.1"
+clap = "3.0.0-beta.1"
 
 [dev-dependencies]
 proptest = "0.10.0"
+

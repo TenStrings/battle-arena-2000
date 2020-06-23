@@ -6,52 +6,27 @@ use log::{error, info};
 use simple_platformer::*;
 use std::net::{TcpListener, TcpStream};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread;
-use std::thread::JoinHandle;
 
-const PORT: u32 = 6669;
-
-fn launch_server() {
-    let (tx, rx) = channel();
-
-    thread::spawn(move || {
-        info!("spawned connection handler");
-        let listener = TcpListener::bind(format!("0.0.0.0:{}", PORT)).unwrap();
-        for stream in listener.incoming() {
-            if let Ok(stream) = stream {
-                info!("accepted stream");
-                tx.send(stream).unwrap();
-            } else {
-                error!("failed to accept conection");
-            }
-        }
-    });
-
-    thread::spawn(move || {
-        info!("spawned server");
-        let mut server = server::Server::new();
-        let mut last_instant = std::time::Instant::now();
-
-        loop {
-            let new_instant = std::time::Instant::now();
-            let dt = new_instant - last_instant;
-            last_instant = new_instant;
-            server.update_state(dt);
-
-            let client = rx.recv_timeout(std::time::Duration::from_millis(10));
-
-            match client {
-                Ok(client) => {
-                    server.add_client(client);
-                }
-                Err(err) => {}
-            }
-        }
-    });
-}
+use clap::{App, Arg};
 
 fn main() -> Result<(), ()> {
     env_logger::init();
+
+    let matches = App::new("battle arena 2000")
+        .version("0.0.1-alpha")
+        .author("Enzo Cioppettini <hi@enzocioppettini.com>")
+        .about("Push people out")
+        .arg(
+            Arg::new("server address")
+                .short('s')
+                .long("server")
+                .takes_value(true),
+        )
+        .get_matches();
+
+    let server_address = matches
+        .value_of("server address")
+        .unwrap_or("127.0.0.1:6666");
 
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new()
@@ -72,10 +47,8 @@ fn main() -> Result<(), ()> {
 
     let mut dpi = gl_current.window().hidpi_factor();
 
-    launch_server();
+    let server = TcpStream::connect(server_address).expect("couldn't connect to server");
 
-    let server =
-        TcpStream::connect(format!("127.0.0.1:{}", PORT)).expect("couldn't connect to server");
     info!("connected to server");
 
     let mut client = client::Client::new(server);
@@ -106,7 +79,6 @@ fn main() -> Result<(), ()> {
             event: WindowEvent::KeyboardInput { input, .. },
             ..
         } => {
-            info!("receveid key event");
             if let Some(key_code) = input.virtual_keycode {
                 use glutin::event::ElementState;
                 match (key_code, input.state) {

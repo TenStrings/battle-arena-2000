@@ -21,7 +21,10 @@ impl CollisionSystem {
         mut on_collision: impl FnMut(Entity, Entity),
     ) {
         let len = components.collision.len();
-        for (index1, collision) in components.collision[..len - 1].iter().enumerate() {
+        for (index1, collision) in components.collision[..len.saturating_sub(1)]
+            .iter()
+            .enumerate()
+        {
             if let Some(collision1) = collision {
                 let pos1 = components.position[index1]
                     .as_ref()
