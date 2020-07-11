@@ -1,6 +1,5 @@
-extern crate simple_platformer;
 use glutin::{event::Event, event::WindowEvent, event_loop::ControlFlow, Api, GlRequest};
-use simple_platformer::*;
+use battle_arena_2000::*;
 
 fn main() -> Result<(), ()> {
     let event_loop = glutin::event_loop::EventLoop::new();

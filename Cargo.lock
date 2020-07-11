@@ -37,6 +37,17 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "battle_arena_2000"
+version = "0.1.0"
+dependencies = [
+ "gl 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glutin 0.22.0-alpha5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nalgebra-glm 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proptest 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winit 0.20.0-alpha5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -905,17 +916,6 @@ dependencies = [
  "num-complex 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "paste 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "simple_platformer"
-version = "0.1.0"
-dependencies = [
- "gl 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "glutin 0.22.0-alpha5 (registry+https://github.com/rust-lang/crates.io-index)",
- "nalgebra-glm 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "proptest 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "winit 0.20.0-alpha5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

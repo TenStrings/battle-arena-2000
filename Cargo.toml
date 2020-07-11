@@ -1,6 +1,6 @@
 [package]
-name = "simple_platformer"
-version = "0.1.0"
+name = "battle_arena_2000"
+version = "0.0.1-alpha1"
 authors = ["Enzo Cioppettini <tenstrings5050@gmail.com>"]
 edition = "2018"
 
