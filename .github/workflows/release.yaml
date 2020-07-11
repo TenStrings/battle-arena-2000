@@ -1,0 +1,48 @@
+on:
+  push:
+    tags:
+      - "v*"
+
+name: Create Release
+
+jobs:
+  create_release:
+    name: Upload Release Asset
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build project
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Get tag version
+        id: get_version
+        run: echo ::set-output name=VERSION::``${GITHUB_REF#refs/tags/}``
+        shell: bash
+      - name: Compress file
+        run: tar -czf battle_arena_2000-${{ steps.get_version.outputs.VERSION }}.tar.gz ./target/release/battle_arena_2000
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./battle_arena_2000-${{ steps.get_version.outputs.VERSION }}.tar.gz
+          asset_name: battle_arena_2000-${{ steps.get_version.outputs.VERSION }}.tar.gz
+          asset_content_type: application/gzip
