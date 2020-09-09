@@ -1,5 +1,5 @@
-use glutin::{event::Event, event::WindowEvent, event_loop::ControlFlow, Api, GlRequest};
 use battle_arena_2000::*;
+use glutin::{event::Event, event::WindowEvent, event_loop::ControlFlow, Api, GlRequest};
 
 fn main() -> Result<(), ()> {
     let event_loop = glutin::event_loop::EventLoop::new();
@@ -19,7 +19,7 @@ fn main() -> Result<(), ()> {
         gl::Viewport(0, 0, 1024, 768)
     };
 
-    let mut dpi = gl_current.window().hidpi_factor();
+    let mut dpi = gl_current.window().scale_factor();
 
     let mut game = Game::new();
     game.add_player();
@@ -43,7 +43,7 @@ fn main() -> Result<(), ()> {
     let mut last_instant = std::time::Instant::now();
 
     event_loop.run(move |event, _, control_flow| match event {
-        Event::EventsCleared => {
+        Event::MainEventsCleared => {
             // Application update code.
 
             let new_instant = std::time::Instant::now();
@@ -55,10 +55,7 @@ fn main() -> Result<(), ()> {
             // Queue a RedrawRequested event.
             gl_current.window().request_redraw();
         }
-        Event::WindowEvent {
-            event: WindowEvent::RedrawRequested,
-            ..
-        } => {
+        Event::RedrawRequested { .. } => {
             // Redraw the application.
             //
             // It's preferrable to render in this event rather than in EventsCleared, since
@@ -71,14 +68,15 @@ fn main() -> Result<(), ()> {
             gl_current.swap_buffers().unwrap();
         }
         Event::WindowEvent {
-            event: WindowEvent::HiDpiFactorChanged(new_dpi),
+            event: WindowEvent::ScaleFactorChanged { scale_factor, .. },
             ..
-        } => dpi = new_dpi,
+        } => dpi = scale_factor,
         Event::WindowEvent {
             event: WindowEvent::Resized(size),
             ..
         } => {
-            gl_current.resize(size.to_physical(dpi));
+            // FIXME: this is probably not ok (?)
+            gl_current.resize(size.to_logical::<u32>(dpi).to_physical(dpi));
         }
         Event::WindowEvent {
             event: WindowEvent::KeyboardInput { input, .. },

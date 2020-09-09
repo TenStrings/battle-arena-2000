@@ -1,6 +1,7 @@
 mod arena;
 mod entity_manager;
 mod graphics;
+mod network;
 pub mod systems;
 pub use arena::Arena;
 pub use entity_manager::*;
