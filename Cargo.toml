@@ -9,6 +9,12 @@ winit = "0.20.0-alpha4"
 glutin = "0.22.0-alpha2"
 gl = "0.6.0"
 nalgebra-glm = "0.7.0"
+thiserror = "1.0"
+async-std = { version = "1.6.4", features = ["unstable", "attributes"] }
+futures = "0.3.5"
+log = "0.4.11"
+pin-project = "1.0.2"
+env_logger = "0.8.2"
 
 [dev-dependencies]
 proptest = "0.10.0"

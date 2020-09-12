@@ -35,10 +35,10 @@ struct Timer {
 impl LogicSystem {
     pub fn new() -> LogicSystem {
         let map_shrink_timer = Timer {
-            remaining: std::time::Duration::from_secs(5),
+            remaining: std::time::Duration::from_secs(15),
             on_expiration: Box::new(|arena, _entity_manager, _component_manager| {
                 arena.shrink(0.01);
-                Some(std::time::Duration::from_secs(5))
+                Some(std::time::Duration::from_secs(15))
             }),
         };
         LogicSystem {

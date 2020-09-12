@@ -1,7 +1,7 @@
 mod arena;
 mod entity_manager;
 mod graphics;
-mod network;
+pub mod network;
 pub mod systems;
 pub use arena::Arena;
 pub use entity_manager::*;
@@ -53,7 +53,7 @@ impl Game {
     }
 
     pub fn update_state(&mut self, dt: std::time::Duration) {
-        let force_to_apply = 500.0;
+        let force_to_apply = 1500.0;
 
         let player_entity = self.player_movement.id.expect("player not set");
 
@@ -157,7 +157,7 @@ impl Game {
 
         self.component_manager.set_position_component(
             player_entity,
-            PositionComponent::new_wrapping(0.0f32, 0.0f32),
+            PositionComponent::new_wrapping(X_MAX / 2f32, Y_MAX / 2f32),
         );
         self.component_manager
             .set_render_component(player_entity, unsafe {
@@ -217,21 +217,25 @@ struct PlayerState {
     shooting: Option<()>,
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum MovementDirection {
     Up,
     Down,
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum RotationDirection {
     Left,
     Right,
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum MovementAction {
     Start,
     Stop,
 }
 
+#[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub enum PlayerCommand {
     Movement {
         direction: MovementDirection,
@@ -242,6 +246,92 @@ pub enum PlayerCommand {
         action: MovementAction,
     },
     Shoot,
+}
+
+impl PlayerCommand {
+    pub fn from_bytes(buffer: &[u8; 3]) -> PlayerCommand {
+        match buffer[0] {
+            0x00 => PlayerCommand::Movement {
+                direction: MovementDirection::from_byte(buffer[1]),
+                action: MovementAction::from_byte(buffer[2]),
+            },
+            0x01 => PlayerCommand::Rotation {
+                direction: RotationDirection::from_byte(buffer[1]),
+                action: MovementAction::from_byte(buffer[2]),
+            },
+            0x02 => PlayerCommand::Shoot,
+            _ => panic!("couldn't deserialize PlayerCommand"),
+        }
+    }
+
+    pub fn to_bytes(&self, buffer: &mut [u8]) {
+        match self {
+            PlayerCommand::Movement { direction, action } => {
+                buffer[0] = 0x00;
+                buffer[1] = direction.to_byte();
+                buffer[2] = action.to_byte();
+            }
+            PlayerCommand::Rotation { direction, action } => {
+                buffer[0] = 0x01;
+                buffer[1] = direction.to_byte();
+                buffer[2] = action.to_byte();
+            }
+            PlayerCommand::Shoot => {
+                buffer[0] = 0x02;
+            }
+        }
+    }
+}
+
+impl MovementAction {
+    fn from_byte(byte: u8) -> MovementAction {
+        match byte {
+            0 => MovementAction::Start,
+            1 => MovementAction::Stop,
+            _ => panic!("MovementAction deserialization error"),
+        }
+    }
+
+    fn to_byte(&self) -> u8 {
+        match *self {
+            MovementAction::Start => 0,
+            MovementAction::Stop => 1,
+        }
+    }
+}
+
+impl MovementDirection {
+    fn from_byte(byte: u8) -> MovementDirection {
+        match byte {
+            0 => MovementDirection::Up,
+            1 => MovementDirection::Down,
+            _ => panic!("MovementAction deserialization error"),
+        }
+    }
+
+    fn to_byte(&self) -> u8 {
+        match *self {
+            MovementDirection::Up => 0,
+            MovementDirection::Down => 1,
+        }
+    }
+}
+
+impl RotationDirection {
+    fn from_byte(byte: u8) -> RotationDirection {
+        match byte {
+            0 => RotationDirection::Left,
+            1 => RotationDirection::Right,
+            _ => panic!("MovementAction deserialization error"),
+        }
+    }
+
+    fn to_byte(&self) -> u8 {
+        match *self {
+            RotationDirection::Left => 0,
+            RotationDirection::Right => 1,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -487,5 +577,51 @@ impl From<glm::Vec2> for PositionComponent {
 impl Into<glm::Vec2> for PositionComponent {
     fn into(self) -> glm::Vec2 {
         glm::vec2(self.x, self.y)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn player_command_deser() {
+        let actions = [MovementAction::Start, MovementAction::Stop];
+        let movements = [MovementDirection::Up, MovementDirection::Down];
+        let rotations = [RotationDirection::Left, RotationDirection::Right];
+
+        for action in actions.iter() {
+            for direction in movements.iter() {
+                let cmd = PlayerCommand::Movement {
+                    direction: *direction,
+                    action: *action,
+                };
+
+                let mut buffer = [0; 3];
+                cmd.to_bytes(&mut buffer);
+
+                assert_eq!(cmd, PlayerCommand::from_bytes(&buffer))
+            }
+
+            for direction in rotations.iter() {
+                let cmd = PlayerCommand::Rotation {
+                    direction: *direction,
+                    action: *action,
+                };
+
+                let mut buffer = [0; 3];
+                cmd.to_bytes(&mut buffer);
+
+                assert_eq!(cmd, PlayerCommand::from_bytes(&buffer))
+            }
+        }
+        {
+            let cmd = PlayerCommand::Shoot;
+
+            let mut buffer = [0; 3];
+            cmd.to_bytes(&mut buffer);
+
+            assert_eq!(cmd, PlayerCommand::from_bytes(&buffer))
+        }
     }
 }
